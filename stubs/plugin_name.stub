@@ -1,0 +1,30 @@
+<?php
+/**
+ * {{PluginName}}
+ *
+ * @package       {{PluginName}}
+ * @author        estou.ai
+ * @license       gplv2
+ * @version       1.0.0
+ *
+ * @wordpress-plugin
+ *
+ * Plugin Name:   {{PluginName}}
+ * Plugin URI:    https://estou.ai
+ * Description:   Quick starter for wordpress plugins
+ * Version:       1.0.0
+ * Author:        estou.ai
+ * Author URI:    https://estou.ai
+ * Text Domain:   {{PluginName}}
+ * Domain Path:   /languages
+ * License:       GPLv2
+ * Image
+ * License URI:   https://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', __DIR__);
+}
+
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/bootstrap/app.php';

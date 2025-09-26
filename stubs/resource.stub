@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Resources;
+
+use Larapress\Components\Form\Form;
+use Larapress\Components\Form\Input;
+use Larapress\Components\Table\Column;
+use Larapress\Components\Table\Table;
+use Larapress\Contracts\HasTableContract;
+use Larapress\Contracts\ResourceContract;
+use Larapress\Resources\BaseResource;
+use Larapress\Resources\Traits\HasTable;
+use Exception;
+use Rakit\Validation\Validator;
+
+class {{ResourceName}} extends BaseResource implements ResourceContract, HasTableContract
+{
+    use HasTable;
+
+    public string $capability = 'manage_options';
+
+    public bool $showMenu = true;
+
+    public function form(Form $form): Form
+    {
+        return $form->schema([
+            Input::make('inputTest')->setLabel('Resources')->setType('number')->setPlaceholder('https://estou.ai')
+        ]);
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function display_settings(): void
+    {
+        $this->action = self::getAction('save');
+
+        $this->render();
+    }
+
+    private function validate()
+    {
+        $validator = new Validator();
+        $rules = [
+            'inputTest' => 'required',
+        ];
+
+        $validation = $validator->validate($_POST, $rules);
+
+        if ($validation->fails()) {
+            $errors = $validation->errors();
+
+            $_SESSION['errors'] = $errors->all('<li>:message</li>');
+            $_SESSION['form_data'] = $_POST;
+
+            $this->goBack();
+            exit;
+        }
+        return true;
+    }
+
+    public function submit(): void
+    {
+        $this->validate();
+
+        $_SESSION['success'] = 'Updated successfully!';
+
+        $this->goBack();
+    }
+
+    public function getMenuTitle(): ?string
+    {
+        return 'Resource Demo';
+    }
+
+    public function getMenuIcon(): ?string
+    {
+        return 'https://estou.ai/assets/favicon/favicon-32x32.png';
+    }
+
+    public function getPosition(): ?int
+    {
+        return 20;
+    }
+
+    public function getActions(): array
+    {
+        return [
+            'save' => [
+                'type' => 'admin_post',
+                'action' => [$this, 'submit']
+            ]
+        ];
+    }
+
+    public function getPages(): array
+    {
+        return [
+            'index' => [$this, 'renderTable'],
+            'settings' => [$this, 'display_settings'],
+        ];
+    }
+
+    public function getTable(): Table
+    {
+
+        return Table::make()->schema([
+            Column::make('id')
+                ->label('ID')
+                ->sortable(),
+        ])->data([]);
+    }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "larapress/core",
+  "description": "This is the core of larapress.",
+  "keywords": [
+    "wordpress",
+    "laravel",
+    "larapress"
+  ],
+  "homepage": "https://estou.ai",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Filipe Clemente",
+      "email": "filipe@estou.ai",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "as247/wp-eloquent": "^2.1",
+    "nesbot/carbon": "^3.3",
+    "rakit/validation": "^1.4",
+    "guzzlehttp/guzzle": "^7.0",
+    "filp/whoops": "^2.15"
+  },
+  "require-dev": {
+    "symfony/var-dumper": "^7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Larapress\\": "src/"
+    },
+    "files": [
+      "autoload.php"
+    ]
+  },
+  "archive": {
+    "exclude": [
+      "stubs/*"
+    ]
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
