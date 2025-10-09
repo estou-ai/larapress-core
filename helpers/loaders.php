@@ -55,10 +55,12 @@ function loadResources(): void
 
 function loadShortCodes(): void
 {
-    $path = __DIR__ . '/../ShortCodes';
+    $path = BASE_PATH . '/App/ShortCodes';
+
     if (!is_dir($path)) {
         return;
     }
+
     $files = scandir($path);
 
     foreach ($files as $file) {
