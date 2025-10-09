@@ -23,7 +23,7 @@ abstract class BaseShortCode extends BaseElement
         return $this->slugify(config('app.slug'), $this->getClass());
     }
 
-    public function execute($args)
+    public function execute($args):false|string
     {
         $this->render();
     }
