@@ -21,4 +21,21 @@ abstract class BaseElement
         return implode($this->separator, $params);
     }
 
+    public function enqueue(): void
+    {
+        /**
+         * @see trait ShortCodeHasStyle
+         */
+        if(method_exists($this, 'loadCss')){
+            $this->loadCss();
+        }
+
+        /**
+         * @see trait ShortCodeHasJavascript
+         */
+        if (method_exists($this, 'loadJs')){
+            $this->loadJs();
+        }
+    }
+
 }
