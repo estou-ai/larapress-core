@@ -149,9 +149,21 @@ class Please
             exit(-100);
         }
 
-        $output = shell_exec("docker exec -u www-data {$container} sh -c " . escapeshellarg($cmd));
+        // composer runs as www-data, so it needs a writable HOME for its cache
+        $cmd = 'export COMPOSER_HOME=/tmp/composer PATH="$PATH:/usr/local/bin:/usr/bin"; ' . $cmd;
+
+        $output = shell_exec("docker exec -u www-data -w /var/www/html/framework {$container} sh -c " . escapeshellarg($cmd));
 
         return $output ?? '';
+    }
+
+    public function runComposerCommand(): void
+    {
+        global $argv;
+
+        $args = implode(' ', array_map('escapeshellarg', array_slice($argv, 2)));
+
+        echo $this->runInDocker('wordpress', 'composer ' . $args);
     }
     public function runDeployCommand(): void
     {
