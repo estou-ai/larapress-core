@@ -5,7 +5,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ZipArchive;
 
-class Please
+class Lp
 {
     private string $basePath;
     private string $wpPath;
@@ -62,6 +62,8 @@ class Please
 
         $this->publishStub(BASE_PATH, 'plugin_name.stub', $config['slug']);
 
+        $this->publishCli();
+
         $this->info("Plugin '{$slug}' installed successfully!");
     }
 
@@ -77,7 +79,7 @@ class Please
         }
 
         if (!isset($argv[2])) {
-            $this->error("Error: missing resource name: 'php please createResource <resource_name>");
+            $this->error("Error: missing resource name: './lp createResource <resource_name>'");
         }
         $resourceName = $argv[2];
 
@@ -116,6 +118,22 @@ class Please
 
         $check = shell_exec("[ -L " . escapeshellarg($target) . " ] && echo '1' || echo '0'");
         return trim($check) === '1';
+    }
+
+    /**
+     * Writes the ./lp entry point, extensionless and executable so it runs
+     * like a command rather than as an argument to php.
+     */
+    private function publishCli(): void
+    {
+        $target = BASE_PATH . '/lp';
+
+        if (file_exists($target)) {
+            return;
+        }
+
+        copy(__DIR__ . '/../../stubs/lp.stub', $target);
+        chmod($target, 0755);
     }
 
     private function publishStub(string $target, string $filename, string $destFileName, array $variables = []): void

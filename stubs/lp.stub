@@ -1,0 +1,27 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * larapress CLI. Run as ./lp <command> (or php lp <command>).
+ */
+
+use Larapress\Console\Lp;
+
+// as247/wp-eloquent trips PHP 8.4+ nullable deprecations on load, which would
+// bury every command's own output. Warnings and errors still show.
+error_reporting(E_ALL & ~E_DEPRECATED);
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', __DIR__);
+}
+
+$command = $argv[1] ?? null;
+
+if (!$command) {
+    echo "Usage: ./lp <command>\n";
+    exit(-1);
+}
+
+(new Lp())->run($command);
