@@ -49,6 +49,41 @@ class Application
         configLoader();
         return $this;
     }
+
+    /**
+     * Loads the plugin's text domain from config/app.php.
+     *
+     * At priority 1 on init, ahead of post types and meta, whose labels call
+     * __() as they register: load the domain after them and WordPress warns
+     * that translations were triggered too early and hands back the
+     * untranslated strings.
+     *
+     * The domain is the app slug, and .mo files live in languages/ unless
+     * app.languages_path says otherwise.
+     */
+    public function loadTranslations(): self
+    {
+        add_action('init', static function () {
+            $domain = (string) config('app.slug');
+
+            if ($domain === '') {
+                return;
+            }
+
+            $relative = trim((string) config('app.languages_path', 'languages'), '/');
+
+            // load_plugin_textdomain() resolves its path against the plugins
+            // directory, so it needs the plugin folder's name — which for a
+            // symlinked install is the link, not basename(BASE_PATH). Reading
+            // the real directory would point WordPress at a path it cannot
+            // see and translations would silently never load.
+            $pluginDir = self::pluginDirName($domain);
+
+            load_plugin_textdomain($domain, false, $pluginDir . '/' . $relative);
+        }, 1);
+
+        return $this;
+    }
     public function loadAdmin(): self
     {
         if (!is_admin()) {
@@ -156,6 +191,22 @@ class Application
         });
 
         return $this;
+    }
+
+    /**
+     * The plugin's directory name under wp-content/plugins.
+     *
+     * Prefers a directory matching the slug, which is what `lp install`
+     * symlinks, and falls back to the real path for a plugin copied in
+     * under its own name.
+     */
+    private static function pluginDirName(string $slug): string
+    {
+        if (defined('WP_PLUGIN_DIR') && is_dir(WP_PLUGIN_DIR . '/' . $slug)) {
+            return $slug;
+        }
+
+        return basename(BASE_PATH);
     }
 
     /** @return BaseSchema[] */

@@ -24,7 +24,10 @@ class Lp
     }
 
     public function run($command){
-        $commandMethod = 'run' . ucfirst($command) . 'Command';
+        // Hyphenated names map onto method names: make-pot -> runMakePotCommand.
+        $studly = str_replace(' ', '', ucwords(str_replace('-', ' ', (string) $command)));
+
+        $commandMethod = 'run' . $studly . 'Command';
 
         if (method_exists($this, $commandMethod)){
             $this->$commandMethod();
@@ -134,6 +137,91 @@ class Lp
 
         copy(__DIR__ . '/../../stubs/lp.stub', $target);
         chmod($target, 0755);
+    }
+
+    /**
+     * Extracts translatable strings into languages/<slug>.pot.
+     *
+     * Delegates to WP-CLI rather than scanning the source here: it is the
+     * reference implementation, and it handles the cases a simple scanner
+     * gets wrong — plural forms, contexts and translator comments.
+     */
+    private function runMakePotCommand(): void
+    {
+        $config = $this->loadConfig();
+        $slug = $config['slug'];
+
+        if (!$this->hasWpCli()) {
+            $this->error('WP-CLI not found. Install it from https://wp-cli.org to extract strings.');
+            exit(-100);
+        }
+
+        $dir = BASE_PATH . '/' . trim($config['languages_path'] ?? 'languages', '/');
+
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            $this->error("Could not create {$dir}");
+            exit(-100);
+        }
+
+        $potFile = $dir . '/' . $slug . '.pot';
+
+        $this->info("Extracting strings into {$potFile}...");
+
+        passthru(sprintf(
+            'wp i18n make-pot %s %s --domain=%s --exclude=vendor,wp,node_modules,db',
+            escapeshellarg(BASE_PATH),
+            escapeshellarg($potFile),
+            escapeshellarg($slug)
+        ), $status);
+
+        if ($status !== 0) {
+            $this->error('String extraction failed.');
+            exit($status);
+        }
+
+        $this->info('Done. Translate the .pot into languages/' . $slug . '-<locale>.po, then run ./lp make-mo');
+    }
+
+    /**
+     * Compiles every .po in the languages directory into the .mo WordPress
+     * actually loads. Editing a .po changes nothing until this runs.
+     */
+    private function runMakeMoCommand(): void
+    {
+        $config = $this->loadConfig();
+
+        if (!$this->hasWpCli()) {
+            $this->error('WP-CLI not found. Install it from https://wp-cli.org to compile translations.');
+            exit(-100);
+        }
+
+        $dir = BASE_PATH . '/' . trim($config['languages_path'] ?? 'languages', '/');
+
+        if (!is_dir($dir)) {
+            $this->error("No translations directory at {$dir}. Run ./lp make-pot first.");
+            exit(-100);
+        }
+
+        if (!glob($dir . '/*.po')) {
+            $this->error("No .po files in {$dir} yet — translate the .pot first.");
+            exit(-100);
+        }
+
+        passthru('wp i18n make-mo ' . escapeshellarg($dir), $status);
+
+        if ($status !== 0) {
+            $this->error('Compilation failed.');
+            exit($status);
+        }
+
+        $this->info('Translations compiled.');
+    }
+
+    private function hasWpCli(): bool
+    {
+        exec('command -v wp 2>/dev/null', $output, $status);
+
+        return $status === 0;
     }
 
     private function publishStub(string $target, string $filename, string $destFileName, array $variables = []): void
