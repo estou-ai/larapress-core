@@ -35,15 +35,21 @@ abstract class BasePostType
         return __('Details', 'larapress');
     }
 
+    /**
+     * Hooks are registered unconditionally and each handler checks fields()
+     * when it runs.
+     *
+     * Calling fields() here instead would read field labels at construction
+     * time — before `init`, and so before any text domain is loaded, which
+     * makes WordPress emit a "translation loading was triggered too early"
+     * notice and return untranslated strings.
+     */
     public function __construct()
     {
         add_action('init', [$this, 'register']);
-
-        if ($this->fields()) {
-            add_action('init', [$this, 'registerMeta']);
-            add_action('add_meta_boxes', [$this, 'registerMetaBox']);
-            add_action('save_post_' . $this->type(), [$this, 'saveMeta'], 10, 2);
-        }
+        add_action('init', [$this, 'registerMeta']);
+        add_action('add_meta_boxes', [$this, 'registerMetaBox']);
+        add_action('save_post_' . $this->type(), [$this, 'saveMeta'], 10, 2);
     }
 
     public function register(): void
@@ -64,13 +70,21 @@ abstract class BasePostType
                 'type' => $field['type'] === 'integer' ? 'integer' : 'string',
                 'description' => $field['label'] ?? $field['id'],
                 'show_in_rest' => false,
-                'auth_callback' => fn() => current_user_can('edit_posts'),
+                // Per-post, matching saveMeta's own check: the generic
+                // edit_posts let any contributor write meta onto a post
+                // belonging to someone else.
+                'auth_callback' => static fn($allowed, $key, $postId)
+                    => current_user_can('edit_post', $postId),
             ]);
         }
     }
 
     public function registerMetaBox(): void
     {
+        if (!$this->fields()) {
+            return;
+        }
+
         add_meta_box(
             $this->type() . '_meta',
             $this->metaBoxTitle(),
@@ -124,6 +138,10 @@ abstract class BasePostType
 
     public function saveMeta($postId, $post): void
     {
+        if (!$this->fields()) {
+            return;
+        }
+
         if (wp_is_post_autosave($postId) || wp_is_post_revision($postId)) {
             return;
         }

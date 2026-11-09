@@ -130,3 +130,84 @@ class CountingSchema extends Larapress\Database\BaseSchema
         parent::install();
     }
 }
+
+/** Exposes BaseShortCode::render for the view-resolution tests. */
+class ProbeShortCode extends Larapress\ShortCodes\BaseShortCode
+{
+    public function __construct()
+    {
+        // Skips add_shortcode: these tests exercise render() alone.
+    }
+
+    public function renderView(string $view, array $data = []): string
+    {
+        return $this->render($view, $data);
+    }
+}
+
+/** Two resources sharing an action name, to prove nonce actions stay distinct. */
+abstract class ProbeResource extends Larapress\Resources\BaseResource
+{
+    public function __construct()
+    {
+        // Skips hook registration; these tests only read nonce actions.
+    }
+
+    public function form(Larapress\Components\Form\Form $form): Larapress\Components\Form\Form
+    {
+        return $form;
+    }
+
+    public function getActions(): array
+    {
+        return [];
+    }
+
+    public function getPages(): array
+    {
+        return [];
+    }
+}
+
+class ResourceAlpha extends ProbeResource
+{
+}
+
+class ResourceBeta extends ProbeResource
+{
+}
+
+/** Exposes the guard and action map for the security tests. */
+class GuardedResource extends ProbeResource
+{
+    public array $declared = [];
+
+    public function __construct()
+    {
+    }
+
+    public function getActions(): array
+    {
+        return $this->declared;
+    }
+
+    public function authorize(string $action, array $details): void
+    {
+        $this->authorizeAction($action, $details);
+    }
+
+    public function currentKey(): ?string
+    {
+        return $this->getCurrentAction();
+    }
+
+    public function exposeNonceAction(string $action): string
+    {
+        return $this->nonceAction($action);
+    }
+
+    public function generate(): void
+    {
+        $this->generateActions();
+    }
+}

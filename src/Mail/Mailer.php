@@ -37,10 +37,23 @@ class Mailer
             $replacements['{' . $key . '}'] = esc_html((string) $value);
         }
 
+        // $to and the display name may both originate from a front-end form,
+        // so neither reaches the headers raw: an address that stops being
+        // valid after sanitising is refused, and CR/LF in the name would
+        // otherwise inject extra headers into wp_mail.
+        $to = sanitize_email($to);
+
+        if (!is_email($to)) {
+            error_log(sprintf('[larapress] e-mail rejected: invalid recipient for "%s"', $subject));
+            return false;
+        }
+
         $headers = ['Content-Type: text/html; charset=UTF-8'];
 
         if (is_email($this->fromEmail)) {
-            $headers[] = sprintf('From: %s <%s>', $this->fromName, $this->fromEmail);
+            $name = trim((string) preg_replace('/[\r\n]+/', ' ', $this->fromName));
+
+            $headers[] = sprintf('From: %s <%s>', $name, $this->fromEmail);
         }
 
         $sent = wp_mail(
@@ -51,7 +64,13 @@ class Mailer
         );
 
         if (!$sent) {
-            error_log(sprintf('[larapress] e-mail to %s failed: %s', $to, $subject));
+            // Masked recipient: debug logs are often readable more widely
+            // than the address book they would otherwise accumulate.
+            error_log(sprintf(
+                '[larapress] e-mail to %s failed: %s',
+                preg_replace('/^[^@]+@/', '***@', $to),
+                $subject
+            ));
         }
 
         return $sent;

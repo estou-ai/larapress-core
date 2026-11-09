@@ -30,24 +30,62 @@ abstract class BaseShortCode extends BaseElement
 
     protected function render(string $view, $data, $internalView = false): string
     {
-        foreach ($data as $name => $value) {
-            $$name = $value;
-        }
-        ob_start();
-        ob_clean();
+        $path = $internalView
+            ? __DIR__ . '/../../resources/Views/errors.php'
+            : self::resolveView($view);
 
-        if ($internalView) {
-            require_once __DIR__ . '/../../resources/Views/errors.php';
-        } else {
-            require_once config('app.views') . $view;
-        }
+        // Extraction runs inside a static closure that holds no locals worth
+        // clobbering: in the old in-scope loop, a data key named `view` or
+        // `internalView` overwrote the parameters and chose the include
+        // target itself.
+        //
+        // require, not require_once: the same shortcode may legitimately
+        // appear twice on one page, and require_once rendered it blank the
+        // second time.
+        $render = static function (string $__path, array $__data): string {
+            foreach ($__data as $__name => $__value) {
+                if (!is_string($__name) || !preg_match('/^[a-zA-Z_]\w*$/', $__name)) {
+                    continue;
+                }
 
-        $html = ob_get_contents();
-        ob_clean();
+                ${$__name} = $__value;
+            }
+
+            unset($__name, $__value, $__data);
+
+            ob_start();
+
+            require $__path;
+
+            return (string) ob_get_clean();
+        };
+
+        $html = $render($path, (array) $data);
+
         $this->enqueue();
-        //add_action('wp_enqueue_scripts', [$this, 'enqueue']);
 
         return $html;
+    }
+
+    /**
+     * Resolves a view name against the configured views directory, refusing
+     * anything that escapes it.
+     *
+     * Callers pass a literal today, but one deriving the name from a
+     * shortcode attribute would otherwise have a local file include.
+     */
+    private static function resolveView(string $view): string
+    {
+        $base = (string) config('app.views');
+
+        $real = realpath($base . '/' . ltrim($view, '/'));
+        $realBase = realpath($base);
+
+        if ($real === false || $realBase === false || !str_starts_with($real, $realBase)) {
+            throw new \RuntimeException(sprintf('View "%s" is not inside the views directory.', $view));
+        }
+
+        return $real;
     }
 
     protected function validation(array $rules, array $data): false|string

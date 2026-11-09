@@ -146,7 +146,11 @@ class Please
 
     public function runInDocker(string $service, string $cmd): string
     {
-        $container = trim(shell_exec("docker compose ps -q {$service}"));
+        // $service is a literal at every call site today, but this is a public
+        // method, so escape it rather than trust that.
+        $container = trim((string) shell_exec(
+            'docker compose ps -q ' . escapeshellarg($service)
+        ));
         if (!$container) {
             $this->error("Service {$service} not running");
             exit(-100);

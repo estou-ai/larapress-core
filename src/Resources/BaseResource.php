@@ -11,10 +11,23 @@ use Rakit\Validation\Validator;
 abstract class BaseResource extends BaseElement
 {
     public array $data = [];
-    public string $capability = 'edit_posts';
+
+    /**
+     * manage_options, not edit_posts: this default gates the admin pages and
+     * every mutating action, and edit_posts is held by Contributors — the
+     * weakest default would hand them data listings and delete links.
+     * Widen deliberately per resource when a page really is for authors.
+     */
+    public string $capability = 'manage_options';
     public bool $showMenu = false;
 
     public string $action = '';
+
+    /** The declared action key for the request being served, set by the guard. */
+    private ?string $currentActionKey = null;
+
+    /** Full admin_post hook => declared action key, for render()/submitted(). */
+    private static array $actionKeys = [];
 
     public ?Model $entry = null;
 
@@ -103,16 +116,31 @@ abstract class BaseResource extends BaseElement
 
             $hook = $this->slugify($details['type'], config('app.slug'), $this->getClass(), $action);
 
+            // Remember which declared key this hook serves. render() and
+            // getCurrentAction() used to take the last `_`-delimited segment
+            // of the hook, which mangled snake_case keys ('delete_all' became
+            // 'all'): the form emitted a nonce for the wrong action, and
+            // submitted() then found no rules for 'all' and silently returned
+            // raw, unvalidated POST to the handler.
+            self::$actionKeys[$hook] = $action;
+
             // The guard runs before the resource's own handler, so a handler
             // can never see a request that failed the nonce or capability
             // check. Without this, every admin_post_* handler is CSRF-open
             // unless its author remembers to check — and they usually do not.
             add_action($hook, function () use ($action, $details) {
+                $this->currentActionKey = $action;
                 $this->authorizeAction($action, $details);
             }, 1);
 
             add_action($hook, $details['action']);
         }
+    }
+
+    /** The declared action key behind a hook, when generateActions() saw it. */
+    public static function resolveActionKey(string $hook): ?string
+    {
+        return self::$actionKeys[$hook] ?? null;
     }
 
     /**
@@ -121,6 +149,12 @@ abstract class BaseResource extends BaseElement
      * Opt out for a deliberately public endpoint by setting
      * ['public' => true] on the action, which is then responsible for its
      * own validation.
+     *
+     * Actions answer POST by default. A nonce in a GET query string leaks
+     * through Referer headers, browser history and server logs, so a
+     * link-style action (an export, a link in a table row) must declare
+     * ['method' => 'get'] to accept GET — and is then extra-careful about
+     * what it does.
      */
     protected function authorizeAction(string $action, array $details): void
     {
@@ -140,11 +174,27 @@ abstract class BaseResource extends BaseElement
 
         $nonce = $this->nonceAction($action);
 
-        // check_admin_referer() accepts the referer alone when the nonce field
-        // is absent, which is too weak here, so require the nonce itself.
-        $supplied = $_REQUEST['_wpnonce'] ?? '';
+        $allowed = $details['method'] ?? 'post';
 
-        if (!$supplied || !wp_verify_nonce($supplied, $nonce)) {
+        $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+
+        if ($allowed === 'post') {
+            // Not $_REQUEST: it would accept the nonce from a GET query
+            // string on a POST-only action, and from cookies as well.
+            $supplied = $_POST['_wpnonce'] ?? '';
+            $supplied = is_string($supplied) ? $supplied : '';
+
+            if (!$isPost || $supplied === '' || !wp_verify_nonce($supplied, $nonce)) {
+                wp_nonce_ays($nonce);
+            }
+
+            return;
+        }
+
+        $supplied = $_GET['_wpnonce'] ?? '';
+        $supplied = is_string($supplied) ? $supplied : '';
+
+        if ($supplied === '' || !wp_verify_nonce($supplied, $nonce)) {
             wp_nonce_ays($nonce);
         }
     }
@@ -245,11 +295,12 @@ abstract class BaseResource extends BaseElement
         $adminPost= $this->adminPost;
         $action = $this->action;
 
-        // $action is the full admin_post hook; the nonce is keyed on the bare
-        // action name, which is its last segment.
+        // $action is the full admin_post hook; the nonce must be keyed on the
+        // declared action key, which the hook map holds even for snake_case
+        // names that a naive last-segment split would mangle.
         $actionName = $action === ''
             ? 'save'
-            : substr($action, strrpos($action, $this->separator) + 1);
+            : (self::resolveActionKey($action) ?? substr($action, strrpos($action, $this->separator) + 1));
 
         $nonceField = wp_nonce_field($this->nonceAction($actionName), '_wpnonce', true, false);
 
@@ -334,12 +385,24 @@ abstract class BaseResource extends BaseElement
         $session['success'] = $message;
     }
 
+    /**
+     * The declared action key serving this request. Resolved through the
+     * hook map when the guard has run, so snake_case keys survive; the last
+     * segment is only a fallback for requests that bypassed it.
+     */
     protected function getCurrentAction()
     {
-        $action = $_POST['action']??null;
-        if($action){
-            $action = explode($this->separator, $action)[count(explode($this->separator, $action))-1];
+        if ($this->currentActionKey !== null) {
+            return $this->currentActionKey;
         }
+
+        $action = $_POST['action'] ?? null;
+
+        if ($action && is_string($action)) {
+            $action = self::resolveActionKey($action) ??
+                explode($this->separator, $action)[count(explode($this->separator, $action)) - 1];
+        }
+
         return $action;
     }
 

@@ -67,7 +67,8 @@ class Table
      *   ])
      *
      * Build a destructive URL with BaseResource::actionUrl(), which carries
-     * the nonce its guard requires.
+     * the nonce its guard requires — and declare ['method' => 'get'] on that
+     * action, since the guard answers POST unless told otherwise.
      *
      * @param array<string,callable> $actions
      */

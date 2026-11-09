@@ -56,12 +56,40 @@ class Application
         }
 
         include_once(ABSPATH . 'wp-admin/includes/plugin.php');
-        $whoops = new \Whoops\Run;
-        $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
-        $whoops->register();
+
+        $this->registerErrorHandler();
+
         loadResources();
 
         return $this;
+    }
+
+    /**
+     * Pretty error pages, for developers only.
+     *
+     * is_admin() is true for any request to wp-admin — including
+     * admin-ajax.php, which unauthenticated visitors can reach — so it says
+     * nothing about who is asking. Gating on it alone served full stack
+     * traces, file paths and function arguments to anonymous users. Require
+     * WP_DEBUG and a capability only a developer-grade account holds.
+     */
+    private function registerErrorHandler(): void
+    {
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return;
+        }
+
+        // The current user is not resolved this early in the load, so the
+        // capability check waits for init rather than silently passing.
+        add_action('init', function () {
+            if (!current_user_can('manage_options')) {
+                return;
+            }
+
+            $whoops = new \Whoops\Run;
+            $whoops->pushHandler(new \Whoops\Handler\PrettyPageHandler);
+            $whoops->register();
+        });
     }
 
     public function loadResources(): self

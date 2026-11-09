@@ -222,3 +222,54 @@ function config_set(string $group, array $values): void
 }
 
 $GLOBALS['wp_transients'] = [];
+
+function is_email($email): bool
+{
+    return is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+function sanitize_email($email): string
+{
+    return preg_replace('/[^a-z0-9.+_@-]/i', '', (string) $email);
+}
+
+function wp_specialchars_decode($text): string
+{
+    return htmlspecialchars_decode((string) $text, ENT_QUOTES);
+}
+
+/** Sent messages, for assertions. */
+$GLOBALS['wp_mail_sent'] = [];
+
+function wp_mail($to, $subject, $message, $headers = []): bool
+{
+    $GLOBALS['wp_mail_sent'][] = compact('to', 'subject', 'message', 'headers');
+    return true;
+}
+
+/** Nonce scheme for tests: "good-<action>" validates. */
+function wp_verify_nonce($nonce, $action): bool
+{
+    return is_string($nonce) && $nonce === 'good-' . $action;
+}
+
+/** Both terminate in WordPress, so tests treat them as throws. */
+function wp_nonce_ays($action): void
+{
+    throw new RuntimeException('nonce_ays');
+}
+
+function wp_die($message = '', $title = '', $args = []): void
+{
+    throw new RuntimeException('wp_die');
+}
+
+function get_admin_url(): string
+{
+    return 'https://example.test/wp-admin/';
+}
+
+function admin_url($path = ''): string
+{
+    return 'https://example.test/wp-admin/' . $path;
+}

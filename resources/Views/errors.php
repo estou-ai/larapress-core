@@ -12,7 +12,7 @@
             <h3>You have an error in shortcode</h3>
             <p>To use this shortcode you need to have the following syntax: </p>
             <code>
-                <?= $shortcode ?>
+                <?= esc_html($shortcode) ?>
             </code>
         <?php
         }
@@ -20,12 +20,12 @@
 
         <h5>Details:</h5>
         <?php if (isset($errors)){?>
-            <ul><?=$errors ?></ul>
+            <ul><?= wp_kses_post($errors) ?></ul>
         <?php
             }
         ?>
         <?php if (isset($details)){?>
-            <p>"<?=$details ?>"</p>
+            <p>"<?= esc_html($details) ?>"</p>
         <?php
         }
         ?>

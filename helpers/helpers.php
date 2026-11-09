@@ -33,6 +33,17 @@ if (!function_exists('session')) {
     function &session(): array
     {
         if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            // Hardened defaults rather than whatever php.ini says, which on
+            // stock installs is httponly=0, secure=0: a session cookie
+            // readable from JavaScript is a fixation and theft vector.
+            if (function_exists('session_set_cookie_params')) {
+                session_set_cookie_params([
+                    'httponly' => true,
+                    'samesite' => 'Lax',
+                    'secure' => function_exists('is_ssl') && is_ssl(),
+                ]);
+            }
+
             session_start();
         }
 
@@ -65,7 +76,9 @@ if (!function_exists('querystring')) {
                 if (!str_ends_with($querystring, "?")) {
                     $querystring .= "&";
                 }
-                $querystring .= "{$name}" . "=" . urlencode("{$value}");
+                // Names come from REQUEST_URI via get_current_page(); encoding
+                // them too keeps a crafted ?<script> key out of the built URL.
+                $querystring .= urlencode("{$name}") . "=" . urlencode("{$value}");
             }
         }
         return $querystring;
@@ -87,15 +100,3 @@ if (!function_exists('json_validate')){
     }
 }
 
-if(!function_exists('get_from_cache')){
-    function get_from_cache(string $key, callable $callback)
-    {
-        if (file_exists(__DIR__.'/../../../bootstrap/cache/'.$key.'-'.date('Y_m_d').'.php')) {
-            return require __DIR__.'/../../../bootstrap/cache/'.$key.'-'.date('Y_m_d').'.php';
-        }
-
-        $value = $callback();
-        file_put_contents(__DIR__.'/../../../bootstrap/cache/'.$key.'-'.date('Y_m_d').'.php', '<?php return '.var_export($value, true).';');
-        return $value;
-    }
-}
