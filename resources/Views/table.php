@@ -87,11 +87,16 @@ function renderColumns($columns)
     }
 </style>
 
+<?php
+// A caller that prints its own heading and wrapper before rendering a table
+// would otherwise get a second <h1>; renderTable() sets $standalone = false
+// for that case.
+$standalone = !isset($standalone) || $standalone;
+?>
+<?php if ($standalone) { ?>
 <div class="wrap">
-    <h1><?php
-
-        echo esc_html(get_admin_page_title()); ?></h1>
-
+    <h1><?= esc_html(get_admin_page_title()) ?></h1>
+<?php } ?>
 
     <table class="wp-list-table widefat fixed striped table-view-list">
         <thead>
@@ -104,6 +109,13 @@ function renderColumns($columns)
         </thead>
 
         <tbody id="the-list">
+        <?php if (!$data) { ?>
+            <tr class="no-items">
+                <td class="colspanchange" colspan="<?= count($columns) + (isset($table) && $table->hasActions() ? 1 : 0) ?>">
+                    <?= esc_html($emptyMessage ?? __('No entries found.', 'larapress')) ?>
+                </td>
+            </tr>
+        <?php } ?>
         <?php foreach ($data as $entry) { ?>
             <tr class="iedit author-self level-0 post-1 type-post status-publish format-standard hentry category-uncategorized">
                 <?php foreach ($columns as $column) {
@@ -125,6 +137,8 @@ function renderColumns($columns)
         <?php } ?>
         </tbody>
 
+        <?php // A repeated header only helps once the rows outrun the screen. ?>
+        <?php if (count($data) > 20) { ?>
         <tfoot>
         <tr>
             <?php renderColumns($columns) ?>
@@ -133,6 +147,7 @@ function renderColumns($columns)
             <?php } ?>
         </tr>
         </tfoot>
+        <?php } ?>
 
     </table>
 
@@ -158,7 +173,9 @@ function renderColumns($columns)
             </div>
         </div>
     <?php } ?>
+<?php if ($standalone) { ?>
 </div>
+<?php } ?>
 
 <script>
     function copyToClipboard(newClip) {
