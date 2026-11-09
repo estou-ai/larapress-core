@@ -14,6 +14,9 @@ class Table
     private int $perPage = 50;
     private int $total = 0;
     private bool $paginated = false;
+    private ?string $actionsLabel = null;
+    private array $filters = [];
+    private array $hiddenParams = [];
 
     public function __construct()
     {
@@ -93,9 +96,70 @@ class Table
         return $links;
     }
 
+    /** Column heading for the actions column. */
+    public function actionsLabel(): string
+    {
+        return $this->actionsLabel ?? __('Actions', 'larapress');
+    }
+
+    public function setActionsLabel(string $label): self
+    {
+        $this->actionsLabel = $label;
+        return $this;
+    }
+
     public function hasActions(): bool
     {
         return $this->actions !== [];
+    }
+
+    /**
+     * Filter controls rendered above the table, as [key => definition]:
+     *
+     *   'status' => ['label' => 'Estado', 'options' => ['open' => 'Abertos']],
+     *   's' => ['label' => 'Procurar', 'type' => 'search'],
+     *
+     * The current values arrive in $_GET under the same keys; the caller
+     * applies them to its own query, since only it knows what they mean.
+     */
+    public function filters(array $filters): self
+    {
+        $this->filters = $filters;
+        return $this;
+    }
+
+    /**
+     * Query parameters carried through the filter form untouched, such as a
+     * record id the page is already scoped to. Without them, filtering drops
+     * that scope.
+     */
+    public function keepParams(array $params): self
+    {
+        $this->hiddenParams = $params;
+        return $this;
+    }
+
+    public function getKeptParams(): array
+    {
+        return $this->hiddenParams;
+    }
+
+    public function getFilters(): array
+    {
+        return $this->filters;
+    }
+
+    public function hasFilters(): bool
+    {
+        return $this->filters !== [];
+    }
+
+    /** The submitted value for a filter, or '' when it is not set. */
+    public static function filterValue(string $key): string
+    {
+        $value = $_GET[$key] ?? '';
+
+        return is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
     }
 
     public function getColumns(): array

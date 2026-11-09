@@ -32,7 +32,11 @@ function renderColumns($columns)
         }
 
         ?>
-        <th scope="col" id="<?= esc_attr($column->getName()) ?>" class="<?= esc_attr($class) ?>">
+        <th scope="col" id="<?= esc_attr($column->getName()) ?>" class="<?= esc_attr($class) ?>"<?php
+            if ($column->getWidth()) {
+                echo ' style="width:' . esc_attr($column->getWidth()) . '"';
+            }
+        ?>>
             <?php if ($column->getIsSortable()){ ?>
             <a href="<?= esc_url(querystring(get_current_page(), ["orderBy" => $column->getName(), "order" => $order])); ?>">
                 <?php } ?>
@@ -98,12 +102,64 @@ $standalone = !isset($standalone) || $standalone;
     <h1><?= esc_html(get_admin_page_title()) ?></h1>
 <?php } ?>
 
+    <?php if (isset($table) && $table->hasFilters()) { ?>
+        <form method="get" class="flad-table-filters tablenav top">
+            <?php // Carries the admin page through, or submitting leaves it. ?>
+            <input type="hidden" name="page" value="<?= esc_attr(sanitize_key($_GET['page'] ?? '')) ?>">
+
+            <?php foreach ($table->getKeptParams() as $keepKey => $keepValue) { ?>
+                <input type="hidden" name="<?= esc_attr($keepKey) ?>" value="<?= esc_attr($keepValue) ?>">
+            <?php } ?>
+
+            <?php foreach ($table->getFilters() as $key => $filter) {
+                $value = Larapress\Components\Table\Table::filterValue($key);
+                $id = 'filter-' . sanitize_key($key);
+                ?>
+                <label class="screen-reader-text" for="<?= esc_attr($id) ?>">
+                    <?= esc_html($filter['label'] ?? $key) ?>
+                </label>
+
+                <?php if (($filter['type'] ?? 'select') === 'search') { ?>
+                    <input type="search" id="<?= esc_attr($id) ?>" name="<?= esc_attr($key) ?>"
+                           value="<?= esc_attr($value) ?>"
+                           placeholder="<?= esc_attr($filter['label'] ?? '') ?>">
+                <?php } else { ?>
+                    <select id="<?= esc_attr($id) ?>" name="<?= esc_attr($key) ?>">
+                        <option value=""><?= esc_html($filter['all'] ?? $filter['label'] ?? '') ?></option>
+                        <?php foreach (($filter['options'] ?? []) as $optValue => $optLabel) { ?>
+                            <option value="<?= esc_attr($optValue) ?>"<?= selected($value, (string) $optValue, false) ?>>
+                                <?= esc_html($optLabel) ?>
+                            </option>
+                        <?php } ?>
+                    </select>
+                <?php } ?>
+            <?php } ?>
+
+            <button type="submit" class="button"><?= esc_html__('Filtrar', 'larapress') ?></button>
+
+            <?php if (array_filter(array_map(
+                fn($k) => Larapress\Components\Table\Table::filterValue($k),
+                array_keys($table->getFilters())
+            ))) { ?>
+                <a class="button-link" href="<?= esc_url(add_query_arg(
+                    array_merge(
+                        ['page' => sanitize_key($_GET['page'] ?? '')],
+                        $table->getKeptParams()
+                    ),
+                    admin_url('admin.php')
+                )) ?>"><?= esc_html__('Limpar', 'larapress') ?></a>
+            <?php } ?>
+        </form>
+    <?php } ?>
+
     <table class="wp-list-table widefat fixed striped table-view-list">
         <thead>
         <tr>
             <?php renderColumns($columns) ?>
             <?php if (isset($table) && $table->hasActions()) { ?>
-                <th scope="col" class="manage-column"><?= esc_html__('Actions', 'larapress') ?></th>
+                <th scope="col" class="manage-column column-actions"><?= esc_html(
+                    $table->actionsLabel()
+                ) ?></th>
             <?php } ?>
         </tr>
         </thead>
@@ -127,10 +183,21 @@ $standalone = !isset($standalone) || $standalone;
                 }
                 ?>
                 <?php if (isset($table) && $table->hasActions()) { ?>
-                    <td>
-                        <?php foreach ($table->actionsFor($entry) as $link) { ?>
-                            <a href="<?= esc_url($link['url']) ?>"><?= esc_html($link['label']) ?></a>
-                        <?php } ?>
+                    <td class="column-actions">
+                        <?php // Separated, so "Editar Inscrições Eliminar" does not read as one word. ?>
+                        <span class="row-actions visible"><?php
+                            $links = $table->actionsFor($entry);
+                            $last = count($links) - 1;
+
+                            foreach ($links as $i => $link) {
+                                printf(
+                                    '<span><a href="%s">%s</a>%s</span>',
+                                    esc_url($link['url']),
+                                    esc_html($link['label']),
+                                    $i < $last ? ' | ' : ''
+                                );
+                            }
+                        ?></span>
                     </td>
                 <?php } ?>
             </tr>
@@ -143,7 +210,9 @@ $standalone = !isset($standalone) || $standalone;
         <tr>
             <?php renderColumns($columns) ?>
             <?php if (isset($table) && $table->hasActions()) { ?>
-                <th scope="col" class="manage-column"><?= esc_html__('Actions', 'larapress') ?></th>
+                <th scope="col" class="manage-column column-actions"><?= esc_html(
+                    $table->actionsLabel()
+                ) ?></th>
             <?php } ?>
         </tr>
         </tfoot>

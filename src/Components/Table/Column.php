@@ -12,6 +12,7 @@ class Column
     private bool $isSortable = false;
     private bool $isDate = false;
     private bool $isHtml = false;
+    private ?string $width = null;
 
     private string $dateFormat='Y-m-d';
 
@@ -49,6 +50,18 @@ class Column
     {
         $this->isHtml = $isHtml;
         return $this;
+    }
+
+    /** Fixed column width, e.g. '9em'; the rest share what is left. */
+    public function width(string $width): self
+    {
+        $this->width = $width;
+        return $this;
+    }
+
+    public function getWidth(): ?string
+    {
+        return $this->width;
     }
 
     public function name(string $name): self
