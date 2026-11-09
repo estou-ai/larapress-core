@@ -56,8 +56,9 @@ abstract class BaseResource extends BaseElement
     public function generateRoutes(): void
     {
         $pages = $this->getPages();
-        $parentSlug = $this->slugify(config('app.slug'), $this->getClass());
+        $parentSlug = $this->menuParent() ?? $this->slugify(config('app.slug'), $this->getClass());
         $position = 1;
+
         if ($this->showMenu){
             $firstAction = array_keys($pages)[0];
 
@@ -73,7 +74,7 @@ abstract class BaseResource extends BaseElement
             add_submenu_page(
                 $parentSlug,
                 $this->getMenuTitle(),
-                $this->getMenuTitle(),
+                $this->pageLabel($firstAction),
                 $this->capability,
                 $parentSlug,
                 $pages[$firstAction],
@@ -85,21 +86,55 @@ abstract class BaseResource extends BaseElement
         }
 
         foreach ($pages as $action => $page) {
-            $slug = $this->slugify($parentSlug,$action);
-            $pageTitle = $this->showMenu? ucfirst($action) . ' ' . $this->getClass():'';
+            $slug = $this->slugify(
+                $this->slugify(config('app.slug'), $this->getClass()),
+                $action
+            );
 
             add_submenu_page(
                 $parentSlug,
-                $pageTitle,
-                ucfirst($action),
+                $this->pageLabel($action),
+                $this->pageLabel($action),
                 $this->capability,
                 $slug,
                 $page,
-                $position
+                $this->menuParent() ? $this->getPosition() ?? $position : $position
             );
 
             $position++;
         }
+    }
+
+    /**
+     * Menu slug to hang these pages under, for a resource that belongs in
+     * another resource's menu rather than carrying its own.
+     *
+     * Return a parent and leave $showMenu false to add submenus only.
+     */
+    public function menuParent(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Submenu label for a page key.
+     *
+     * Defaults to the capitalised key, which is only ever right in English;
+     * override menuLabels() to name them properly.
+     */
+    protected function pageLabel(string $action): string
+    {
+        return $this->menuLabels()[$action] ?? ucfirst($action);
+    }
+
+    /**
+     * Human labels per page key: ['list' => __('Events'), ...].
+     *
+     * @return array<string,string>
+     */
+    public function menuLabels(): array
+    {
+        return [];
     }
 
     /**
