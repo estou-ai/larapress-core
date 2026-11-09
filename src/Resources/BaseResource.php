@@ -91,6 +91,23 @@ abstract class BaseResource extends BaseElement
                 $action
             );
 
+            // A hidden page registers under no parent: WordPress still routes
+            // it and still enforces the capability, it simply gets no sidebar
+            // entry. remove_submenu_page() would drop the authorisation entry
+            // too, answering 403 on every visit.
+            if (in_array($action, $this->hiddenPages(), true)) {
+                add_submenu_page(
+                    '',
+                    $this->pageLabel($action),
+                    '',
+                    $this->capability,
+                    $slug,
+                    $page
+                );
+
+                continue;
+            }
+
             add_submenu_page(
                 $parentSlug,
                 $this->pageLabel($action),
@@ -133,6 +150,16 @@ abstract class BaseResource extends BaseElement
      * @return array<string,string>
      */
     public function menuLabels(): array
+    {
+        return [];
+    }
+
+    /**
+     * Page keys that register without a menu entry.
+     *
+     * @return string[]
+     */
+    public function hiddenPages(): array
     {
         return [];
     }
