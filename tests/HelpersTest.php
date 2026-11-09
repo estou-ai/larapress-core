@@ -100,3 +100,24 @@ describe('flash', function () {
         expect(Flash::take())->toBeNull();
     });
 });
+
+describe('flash peek', function () {
+    it('does not consume on peek', function () {
+        $url = Flash::to('https://example.test/page', ['a' => 1]);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $_GET = [Flash::PARAM => $query[Flash::PARAM]];
+
+        expect(Flash::peek())->toBe(['a' => 1])
+            ->and(Flash::peek())->toBe(['a' => 1]);
+    });
+
+    it('consumes only when forget is called', function () {
+        $url = Flash::to('https://example.test/page', ['a' => 1]);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $_GET = [Flash::PARAM => $query[Flash::PARAM]];
+
+        Flash::forget();
+
+        expect(Flash::peek())->toBeNull();
+    });
+});

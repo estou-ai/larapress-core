@@ -36,7 +36,25 @@ class Flash
      */
     public static function take(): ?array
     {
-        $token = isset($_GET[self::PARAM]) ? sanitize_key($_GET[self::PARAM]) : '';
+        $payload = self::peek();
+
+        if ($payload !== null) {
+            self::forget();
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Reads the payload without consuming it, for when the caller must first
+     * decide whether the message is addressed to it — two forms on one page
+     * would otherwise have the first one swallow the second one's message.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function peek(): ?array
+    {
+        $token = self::token();
 
         if ($token === '') {
             return null;
@@ -44,13 +62,21 @@ class Flash
 
         $payload = get_transient(self::key($token));
 
-        if (!is_array($payload)) {
-            return null;
+        return is_array($payload) ? $payload : null;
+    }
+
+    public static function forget(): void
+    {
+        $token = self::token();
+
+        if ($token !== '') {
+            delete_transient(self::key($token));
         }
+    }
 
-        delete_transient(self::key($token));
-
-        return $payload;
+    private static function token(): string
+    {
+        return isset($_GET[self::PARAM]) ? sanitize_key($_GET[self::PARAM]) : '';
     }
 
     /**
