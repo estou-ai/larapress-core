@@ -19,7 +19,7 @@ if (!function_exists('array_get')) {
 if (!function_exists('public_path')) {
     function public_path($path): string
     {
-        return helpers . phpconfig('app.resources_url') . $path;
+        return config('app.resources_url') . $path;
     }
 }
 

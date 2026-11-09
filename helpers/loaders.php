@@ -2,7 +2,7 @@
 
 function loadFiles($path): void
 {
-    $files = glob(__DIR__ . '/' . config('app.slug') . 'loaders.php/' .$path . '/*.php');
+    $files = glob(BASE_PATH . '/' . $path . '/*.php');
 
     foreach ($files as $file) {
         require_once $file;

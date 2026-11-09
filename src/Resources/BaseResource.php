@@ -72,7 +72,7 @@ abstract class BaseResource extends BaseElement
 
         foreach ($pages as $action => $page) {
             $slug = $this->slugify($parentSlug,$action);
-            $pageTitle = $this->showMenu? ucfirst($action) . ' BaseResource.php' .$this->getClass():'';
+            $pageTitle = $this->showMenu? ucfirst($action) . ' ' . $this->getClass():'';
 
             add_submenu_page(
                 $parentSlug,
