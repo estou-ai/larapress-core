@@ -6,6 +6,18 @@
  */
 
 define('BASE_PATH', __DIR__ . '/fixtures');
+
+// BaseSchema::install() requires wp-admin/includes/upgrade.php for dbDelta;
+// point ABSPATH at a scratch tree holding an empty stand-in.
+define('ABSPATH', __DIR__ . '/fixtures/wp/');
+
+if (!is_dir(ABSPATH . 'wp-admin/includes')) {
+    mkdir(ABSPATH . 'wp-admin/includes', 0777, true);
+}
+
+if (!file_exists(ABSPATH . 'wp-admin/includes/upgrade.php')) {
+    file_put_contents(ABSPATH . 'wp-admin/includes/upgrade.php', '<?php');
+}
 define('HOUR_IN_SECONDS', 3600);
 define('DAY_IN_SECONDS', 86400);
 
@@ -134,3 +146,79 @@ class TestWpdb
 
 $GLOBALS['wpdb'] = new TestWpdb();
 $GLOBALS['wp_options'] = [];
+
+function set_transient($key, $value, $ttl = 0): bool
+{
+    $GLOBALS['wp_transients'][$key] = $value;
+    return true;
+}
+
+function get_transient($key)
+{
+    return $GLOBALS['wp_transients'][$key] ?? false;
+}
+
+function delete_transient($key): bool
+{
+    unset($GLOBALS['wp_transients'][$key]);
+    return true;
+}
+
+function sanitize_key($key): string
+{
+    return preg_replace('/[^a-z0-9_\-]/', '', strtolower((string) $key));
+}
+
+function add_query_arg($key, $value = null, $url = null): string
+{
+    if (is_array($key)) {
+        $args = $key;
+        $url = $value;
+    } else {
+        $args = [$key => $value];
+    }
+
+    $parts = parse_url((string) $url);
+    parse_str($parts['query'] ?? '', $query);
+
+    $query = array_merge($query, $args);
+
+    $base = ($parts['scheme'] ?? 'http') . '://' . ($parts['host'] ?? 'example.test') . ($parts['path'] ?? '');
+
+    return $base . '?' . http_build_query($query);
+}
+
+function remove_query_arg($key, $url = null): string
+{
+    $parts = parse_url((string) $url);
+    parse_str($parts['query'] ?? '', $query);
+
+    foreach ((array) $key as $k) {
+        unset($query[$k]);
+    }
+
+    $base = ($parts['scheme'] ?? 'http') . '://' . ($parts['host'] ?? 'example.test') . ($parts['path'] ?? '');
+
+    return $query ? $base . '?' . http_build_query($query) : $base;
+}
+
+function dbDelta($sql): array
+{
+    return [];
+}
+
+function wp_enqueue_style(...$args): void
+{
+}
+
+function wp_enqueue_script(...$args): void
+{
+}
+
+/** Test helper: replaces one config group. */
+function config_set(string $group, array $values): void
+{
+    $GLOBALS['configs'][$group] = $values;
+}
+
+$GLOBALS['wp_transients'] = [];

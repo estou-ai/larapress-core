@@ -21,24 +21,25 @@ use Larapress\Components\Form\Form;
        class="nav-tab"><?= esc_html__('Back', 'larapress') ?></a>
 </nav>
 <?php
-if(@$_SESSION['errors']){
+$session = &session();
+
+if (!empty($session['errors'])) {
     ?>
     <div class="notice notice-error">
         <h3><?= esc_html__('Please check this fields:', 'larapress') ?></h3>
-        <p><strong><?= esc_html(implode(', ', (array) $_SESSION['errors'])) ?></strong></p>
+        <p><strong><?= wp_kses_post(implode(' ', (array) $session['errors'])) ?></strong></p>
     </div>
     <?php
-    unset($_SESSION['errors']);
+    unset($session['errors']);
 }
-?>
-<?php
-if(@$_SESSION['success']){
+
+if (!empty($session['success'])) {
     ?>
     <div class="notice notice-success is-dismissible">
-        <p><strong><?= esc_html($_SESSION['success']) ?></strong></p>
+        <p><strong><?= esc_html($session['success']) ?></strong></p>
     </div>
     <?php
-    unset($_SESSION['success']);
+    unset($session['success']);
 }
 ?>
 <div>

@@ -28,23 +28,27 @@ class Select
 
     public function render()
     {
-        return '<select name="'.$this->dbCollumn.'" id="'.$this->dbCollumn.'">
+        return '<select name="' . esc_attr($this->dbCollumn) . '" id="' . esc_attr($this->dbCollumn) . '">
                 '.$this->getOptions().'
             </select>';
     }
 
+    /** Option values and labels are escaped; both can come from stored data. */
     private function getOptions()
     {
         $html = '';
         if ($this->defaultValue == "" && $this->value == "") {
-            $html.= '<option value="" selected disabled>Select an option</option>';
+            $html.= '<option value="" selected disabled>'
+                . esc_html__('Select an option', 'larapress')
+                . '</option>';
         }
         foreach ($this->options as $value => $label) {
             if ($label == ''){
                 continue;
             }
             $selected = $this->isSelected($value)?' selected="selected"':'';
-            $html .= '<option '.$selected.' value="'.$value.'">'.$label.'</option>';
+            $html .= '<option '.$selected.' value="' . esc_attr($value) . '">'
+                . esc_html($label) . '</option>';
         }
         return $html;
     }

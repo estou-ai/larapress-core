@@ -34,15 +34,37 @@ trait HasJavascript
             wp_enqueue_script('jquery');
         }
 
-        $js_files = $this->js();
+        foreach ($this->js() as $key => $value) {
+            [$handle, $options] = Asset::normalize($key, $value, 'js');
 
-        foreach ($js_files as $file) {
-            wp_enqueue_script($file, public_path('/js/'. $file.'.js'));
+            wp_enqueue_script(
+                $handle,
+                $options['src'],
+                $options['deps'],
+                $options['version'],
+                $options['in_footer']
+            );
         }
 
         $this->renderJsVariables();
     }
 
+    /**
+     * Scripts to enqueue.
+     *
+     * Short form, resolved to resources/js/<name>.js:
+     *   return ['event-form'];
+     *
+     * Long form, for dependencies, a version, head placement or a CDN:
+     *   return [
+     *       'event-form' => ['deps' => ['jquery']],
+     *       'turnstile' => [
+     *           'src' => 'https://challenges.cloudflare.com/turnstile/v0/api.js',
+     *           'version' => null,
+     *       ],
+     *       'early' => ['in_footer' => false],
+     *   ];
+     */
     public function js():array
     {
         return [];

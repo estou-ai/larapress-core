@@ -97,6 +97,9 @@ function renderColumns($columns)
         <thead>
         <tr>
             <?php renderColumns($columns) ?>
+            <?php if (isset($table) && $table->hasActions()) { ?>
+                <th scope="col" class="manage-column"><?= esc_html__('Actions', 'larapress') ?></th>
+            <?php } ?>
         </tr>
         </thead>
 
@@ -111,6 +114,13 @@ function renderColumns($columns)
                     <?php
                 }
                 ?>
+                <?php if (isset($table) && $table->hasActions()) { ?>
+                    <td>
+                        <?php foreach ($table->actionsFor($entry) as $link) { ?>
+                            <a href="<?= esc_url($link['url']) ?>"><?= esc_html($link['label']) ?></a>
+                        <?php } ?>
+                    </td>
+                <?php } ?>
             </tr>
         <?php } ?>
         </tbody>
@@ -118,6 +128,9 @@ function renderColumns($columns)
         <tfoot>
         <tr>
             <?php renderColumns($columns) ?>
+            <?php if (isset($table) && $table->hasActions()) { ?>
+                <th scope="col" class="manage-column"><?= esc_html__('Actions', 'larapress') ?></th>
+            <?php } ?>
         </tr>
         </tfoot>
 

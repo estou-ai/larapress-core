@@ -12,8 +12,11 @@ class Please
 
     public function __construct()
     {
-        $this->basePath = '/var/www/html/framework';
-        $this->wpPath   = $this->basePath . '/wp';
+        // Derived from where the plugin actually is, not from one Docker
+        // layout. LARAPRESS_WP_PATH covers an install whose WordPress root
+        // sits outside the plugin directory.
+        $this->basePath = defined('BASE_PATH') ? BASE_PATH : getcwd();
+        $this->wpPath   = getenv('LARAPRESS_WP_PATH') ?: $this->basePath . '/wp';
 
         require_once __DIR__.'/../../autoload.php';
 
@@ -152,7 +155,16 @@ class Please
         // composer runs as www-data, so it needs a writable HOME for its cache
         $cmd = 'export COMPOSER_HOME=/tmp/composer PATH="$PATH:/usr/local/bin:/usr/bin"; ' . $cmd;
 
-        $output = shell_exec("docker exec -u www-data -w /var/www/html/framework {$container} sh -c " . escapeshellarg($cmd));
+        // The working directory inside the container, which need not match
+        // the host layout; override per project with LARAPRESS_DOCKER_WORKDIR.
+        $workdir = getenv('LARAPRESS_DOCKER_WORKDIR') ?: '/var/www/html/framework';
+
+        $output = shell_exec(sprintf(
+            'docker exec -u www-data -w %s %s sh -c %s',
+            escapeshellarg($workdir),
+            escapeshellarg($container),
+            escapeshellarg($cmd)
+        ));
 
         return $output ?? '';
     }

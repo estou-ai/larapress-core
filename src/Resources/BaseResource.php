@@ -6,6 +6,7 @@ use As247\WpEloquent\Database\Eloquent\Model;
 use Exception;
 use Larapress\Components\Form\Form;
 use Larapress\Dependencies\BaseElement;
+use Rakit\Validation\Validator;
 
 abstract class BaseResource extends BaseElement
 {
@@ -223,19 +224,21 @@ abstract class BaseResource extends BaseElement
         $form = $this->form($formInstance);
 
 
+        $session = &session();
+
         if($this->entry != null) {
-            if(!@$_SESSION['errors'] || !@$_SESSION['form_data']) {
+            if(empty($session['errors']) || empty($session['form_data'])) {
                 $form->fill($this->entry);
             }
-            $idField = '<input type="hidden" name="id" value="'.$this->entry->getKey().'"></input>';
+            $idField = '<input type="hidden" name="id" value="'. esc_attr($this->entry->getKey()) .'"></input>';
         }else{
             $idField = '';
         }
 
-        if(@$_SESSION['errors']){
-            if (@$_SESSION['form_data']) {
-                $form->fill($_SESSION['form_data']);
-                unset($_SESSION['form_data']);
+        if(!empty($session['errors'])){
+            if (!empty($session['form_data'])) {
+                $form->fill($session['form_data']);
+                unset($session['form_data']);
             }
         }
 
@@ -262,10 +265,73 @@ abstract class BaseResource extends BaseElement
         return $this;
     }
 
+    /**
+     * Returns to the previous admin page.
+     *
+     * wp_safe_redirect keeps the target on this host: the raw HTTP_REFERER is
+     * client-supplied, so echoing it into a Location header is both an open
+     * redirect and a header-injection vector.
+     */
     public function goBack(): void
     {
-        header('Location: ' . $_SERVER['HTTP_REFERER']);
+        wp_safe_redirect(wp_get_referer() ?: admin_url());
         exit;
+    }
+
+    /**
+     * Validation rules for an action, keyed by field. Declaring them here is
+     * enough — submitted() runs them, stores the messages and returns the
+     * user to the form with their input intact.
+     *
+     * @return array<string,string>
+     */
+    public function rules(string $action = 'save'): array
+    {
+        return [];
+    }
+
+    /**
+     * Validated POST data for the current action, or never returns: on
+     * failure it stores the errors and redirects back to the form.
+     *
+     * Replaces the Validator + $_SESSION + goBack() block that every
+     * submit() handler would otherwise repeat.
+     */
+    protected function submitted(?string $action = null): array
+    {
+        $action = $action ?? $this->getCurrentAction() ?? 'save';
+
+        $data = wp_unslash($_POST);
+        $rules = $this->rules($action);
+
+        if (!$rules) {
+            return $data;
+        }
+
+        $validation = (new Validator())->validate($data, $rules);
+
+        if ($validation->fails()) {
+            $this->flashErrors($validation->errors()->all('<li>:message</li>'), $data);
+            $this->goBack();
+        }
+
+        return $validation->getValidatedData();
+    }
+
+    /** Stores messages and the submitted values for the form to render. */
+    protected function flashErrors(array $errors, array $data = []): void
+    {
+        $session = &session();
+
+        $session['errors'] = $errors;
+        $session['form_data'] = $data;
+    }
+
+    protected function flashSuccess(string $message): void
+    {
+        $session = &session();
+
+        $session['success'] = $message;
     }
 
     protected function getCurrentAction()

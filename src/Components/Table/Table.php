@@ -57,10 +57,44 @@ class Table
         return $this;
     }
 
+    /**
+     * Per-row links rendered in a trailing Actions column.
+     *
+     * Each entry is a label and a callable returning the URL for that row:
+     *   ->actions([
+     *       'Edit' => fn(array $row) => self::getRoute('edit', ['id' => $row['id']]),
+     *       'Delete' => fn(array $row) => self::actionUrl('delete', ['id' => $row['id']]),
+     *   ])
+     *
+     * Build a destructive URL with BaseResource::actionUrl(), which carries
+     * the nonce its guard requires.
+     *
+     * @param array<string,callable> $actions
+     */
     public function actions(array $actions): self
     {
         $this->actions = $actions;
         return $this;
+    }
+
+    /** Resolved [label, url] pairs for one row. */
+    public function actionsFor(array $entry): array
+    {
+        $links = [];
+
+        foreach ($this->actions as $label => $url) {
+            $links[] = [
+                'label' => (string) $label,
+                'url' => is_callable($url) ? (string) $url($entry) : (string) $url,
+            ];
+        }
+
+        return $links;
+    }
+
+    public function hasActions(): bool
+    {
+        return $this->actions !== [];
     }
 
     public function getColumns(): array

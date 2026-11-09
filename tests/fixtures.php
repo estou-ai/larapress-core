@@ -108,3 +108,25 @@ class FakeQueryBuilder extends As247\WpEloquent\Database\Eloquent\Builder
         };
     }
 }
+
+/** Counts install() calls, to prove ensure() skips a matching version. */
+class CountingSchema extends Larapress\Database\BaseSchema
+{
+    public static int $installs = 0;
+
+    public function name(): string
+    {
+        return 'counted';
+    }
+
+    public function definition(): string
+    {
+        return 'id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY  (id)';
+    }
+
+    public function install(): void
+    {
+        self::$installs++;
+        parent::install();
+    }
+}
