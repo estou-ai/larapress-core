@@ -100,8 +100,87 @@ abstract class BaseResource extends BaseElement
                 throw new Exception("Action $action doesn't exist");
             }
 
-            add_action($this->slugify($details['type'], config('app.slug'), $this->getClass(),$action), $details['action']);
+            $hook = $this->slugify($details['type'], config('app.slug'), $this->getClass(), $action);
+
+            // The guard runs before the resource's own handler, so a handler
+            // can never see a request that failed the nonce or capability
+            // check. Without this, every admin_post_* handler is CSRF-open
+            // unless its author remembers to check — and they usually do not.
+            add_action($hook, function () use ($action, $details) {
+                $this->authorizeAction($action, $details);
+            }, 1);
+
+            add_action($hook, $details['action']);
         }
+    }
+
+    /**
+     * Verifies capability and nonce for an action request, dying on failure.
+     *
+     * Opt out for a deliberately public endpoint by setting
+     * ['public' => true] on the action, which is then responsible for its
+     * own validation.
+     */
+    protected function authorizeAction(string $action, array $details): void
+    {
+        if (!empty($details['public'])) {
+            return;
+        }
+
+        $capability = $details['capability'] ?? $this->capability;
+
+        if (!current_user_can($capability)) {
+            wp_die(
+                esc_html__('You are not allowed to do this.', 'larapress'),
+                '',
+                ['response' => 403]
+            );
+        }
+
+        $nonce = $this->nonceAction($action);
+
+        // check_admin_referer() accepts the referer alone when the nonce field
+        // is absent, which is too weak here, so require the nonce itself.
+        $supplied = $_REQUEST['_wpnonce'] ?? '';
+
+        if (!$supplied || !wp_verify_nonce($supplied, $nonce)) {
+            wp_nonce_ays($nonce);
+        }
+    }
+
+    /** Nonce action for a resource action; pair it with nonceField(). */
+    public function nonceAction(string $action = 'save'): string
+    {
+        return $this->slugify(config('app.slug'), $this->getClass(), $action, 'nonce');
+    }
+
+    /**
+     * Hidden nonce input for a form posting to one of this resource's actions.
+     *
+     * @throws Exception
+     */
+    public static function nonceField(string $action = 'save'): string
+    {
+        $instance = new static();
+
+        return wp_nonce_field($instance->nonceAction($action), '_wpnonce', true, false);
+    }
+
+    /**
+     * URL for one of this resource's actions, nonce included.
+     *
+     * @throws Exception
+     */
+    public static function actionUrl(string $action = 'save', array $params = []): string
+    {
+        $instance = new static();
+
+        $url = add_query_arg(
+            array_merge(['action' => static::getAction($action)], $params),
+            admin_url('admin-post.php')
+        );
+
+        return wp_nonce_url($url, $instance->nonceAction($action));
     }
 
     /**
@@ -162,6 +241,14 @@ abstract class BaseResource extends BaseElement
 
         $adminPost= $this->adminPost;
         $action = $this->action;
+
+        // $action is the full admin_post hook; the nonce is keyed on the bare
+        // action name, which is its last segment.
+        $actionName = $action === ''
+            ? 'save'
+            : substr($action, strrpos($action, $this->separator) + 1);
+
+        $nonceField = wp_nonce_field($this->nonceAction($actionName), '_wpnonce', true, false);
 
         add_action('wp_enqueue_scripts', [$this, 'enqueue']);
 

@@ -11,6 +11,7 @@ class Column
 
     private bool $isSortable = false;
     private bool $isDate = false;
+    private bool $isHtml = false;
 
     private string $dateFormat='Y-m-d';
 
@@ -34,6 +35,19 @@ class Column
     public function date(bool $isDate = true): self
     {
         $this->isDate = $isDate;
+        return $this;
+    }
+
+    /**
+     * Renders this column's value as raw HTML instead of escaping it.
+     *
+     * Only for markup the column itself builds, such as a link assembled in
+     * setGetValue(). Never for a value that came from a request or the
+     * database, since that is stored XSS.
+     */
+    public function html(bool $isHtml = true): self
+    {
+        $this->isHtml = $isHtml;
         return $this;
     }
 
@@ -79,6 +93,7 @@ class Column
         return $this->dateFormat;
     }
 
+    /** The raw value, unescaped. Use getRenderedValue() to print it. */
     public function getValue(array $entry)
     {
         $name = $this->getName();
@@ -101,6 +116,28 @@ class Column
         }else{
             return '-';
         }
+    }
+
+    /**
+     * The value escaped for output, which is what the table view prints.
+     *
+     * Escaping by default means a name or e-mail submitted through a public
+     * form cannot inject markup into the admin. Columns that genuinely build
+     * markup opt out with html().
+     */
+    public function getRenderedValue(array $entry): string
+    {
+        $value = $this->getValue($entry);
+
+        if ($this->isHtml) {
+            return (string) $value;
+        }
+
+        if (is_array($value)) {
+            $value = implode(', ', $value);
+        }
+
+        return esc_html((string) $value);
     }
 
     public function setGetValue(callable $callback)

@@ -32,11 +32,11 @@ function renderColumns($columns)
         }
 
         ?>
-        <th scope="col" id="<?= $column->getName() ?>" class="<?= $class ?>">
+        <th scope="col" id="<?= esc_attr($column->getName()) ?>" class="<?= esc_attr($class) ?>">
             <?php if ($column->getIsSortable()){ ?>
-            <a href="<?= querystring(get_current_page(), ["orderBy" => $column->getName(), "order" => $order]); ?>">
+            <a href="<?= esc_url(querystring(get_current_page(), ["orderBy" => $column->getName(), "order" => $order])); ?>">
                 <?php } ?>
-                <span><?= $column->getLabel() ?></span>
+                <span><?= esc_html($column->getLabel()) ?></span>
                 <?php if ($column->getIsSortable()) { ?>
                     <span class="sorting-indicators">
                     <span class="sorting-indicator asc" aria-hidden="true"></span>
@@ -106,7 +106,7 @@ function renderColumns($columns)
                 <?php foreach ($columns as $column) {
                     ?>
                     <th scope="row">
-                        <?= $column->getValue($entry); ?>
+                        <?= $column->getRenderedValue($entry); ?>
                     </th>
                     <?php
                 }
@@ -122,6 +122,29 @@ function renderColumns($columns)
         </tfoot>
 
     </table>
+
+    <?php if (isset($table) && $table->isPaginated()) { ?>
+        <div class="tablenav bottom">
+            <div class="tablenav-pages">
+                <span class="displaying-num"><?php
+                    printf(
+                        esc_html(_n('%s item', '%s items', $table->getTotal(), 'larapress')),
+                        number_format_i18n($table->getTotal())
+                    );
+                ?></span>
+                <span class="pagination-links"><?php
+                    echo paginate_links([
+                        'base' => esc_url_raw(querystring(get_current_page(), ['paged' => '%#%'])),
+                        'format' => '',
+                        'prev_text' => '&lsaquo;',
+                        'next_text' => '&rsaquo;',
+                        'total' => $table->totalPages(),
+                        'current' => $table->currentPage(),
+                    ]);
+                ?></span>
+            </div>
+        </div>
+    <?php } ?>
 </div>
 
 <script>

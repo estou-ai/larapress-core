@@ -27,11 +27,21 @@ class Application
         return $this;
     }
 
+    /**
+     * Sessions are started on first use, not on every request.
+     *
+     * An unconditional session_start() sends a PHPSESSID cookie on every
+     * page, which defeats full-page caching (Varnish, Cloudflare, WP
+     * Super Cache) across the whole site. Admin requests are never cached,
+     * so those start eagerly and existing admin code keeps working.
+     */
     public function loadSession(): self
     {
-        session_start();
-        return $this;
+        if (is_admin()) {
+            session();
+        }
 
+        return $this;
     }
 
     public function loadConfig(): self

@@ -31,13 +31,26 @@ function configLoader(): void
 }
 
 /**
- * Instantiates every class in App/<dir>, and returns the instances so callers
- * can keep working with them (scheduling crons, migrating schemas).
+ * Instantiates the classes registered for App/<dir>, and returns the instances
+ * so callers can keep working with them (scheduling crons, migrating schemas).
+ *
+ * When config/providers.php lists the directory, that list wins: load order is
+ * explicit, and a typo throws instead of silently loading nothing. Otherwise
+ * the directory is scanned, which is convenient but hides both of those.
+ *
+ * config/providers.php:
+ *   return ['PostTypes' => [App\PostTypes\Event::class], ...];
  *
  * @return object[]
  */
 function loadClassesIn(string $dir): array
 {
+    $registered = config('providers.' . $dir);
+
+    if (is_array($registered)) {
+        return loadRegisteredClasses($dir, $registered);
+    }
+
     $path = BASE_PATH . '/App/' . $dir;
 
     if (!is_dir($path)) {
@@ -73,6 +86,32 @@ function loadClassesIn(string $dir): array
 
         if ($constructor && $constructor->getNumberOfRequiredParameters() > 0) {
             continue;
+        }
+
+        $instances[] = new $class();
+    }
+
+    return $instances;
+}
+
+/**
+ * Instantiates an explicit class list, failing loudly on a name that does not
+ * resolve — the whole point of declaring them.
+ *
+ * @param string[] $classes
+ * @return object[]
+ */
+function loadRegisteredClasses(string $dir, array $classes): array
+{
+    $instances = [];
+
+    foreach ($classes as $class) {
+        if (!class_exists($class)) {
+            throw new RuntimeException(sprintf(
+                'Class %s is registered under providers.%s but does not exist.',
+                $class,
+                $dir
+            ));
         }
 
         $instances[] = new $class();

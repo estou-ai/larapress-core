@@ -23,6 +23,27 @@ if (!function_exists('public_path')) {
     }
 }
 
+if (!function_exists('session')) {
+    /**
+     * Starts the session on first call and returns $_SESSION by reference.
+     *
+     * Call this instead of touching $_SESSION directly on the front end,
+     * where the session is not started for you.
+     */
+    function &session(): array
+    {
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            session_start();
+        }
+
+        if (!isset($_SESSION)) {
+            $_SESSION = [];
+        }
+
+        return $_SESSION;
+    }
+}
+
 if (!function_exists('config')) {
     function config($key, $default = null)
     {
